@@ -3,7 +3,7 @@ import { Chess } from 'chess.js';
 import { ChessboardContainer } from '../Board/ChessboardContainer';
 import { puzzleService } from '../../services/puzzleService';
 import { audio } from '../../services/audioService';
-import { Puzzle, CheckCircle2, XCircle, ArrowRight, Trophy } from 'lucide-react';
+import { Puzzle, CheckCircle2, XCircle, ArrowRight, Trophy, RotateCcw } from 'lucide-react';
 
 export function PuzzleView() {
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
@@ -138,6 +138,35 @@ export function PuzzleView() {
     }
   };
 
+  const handleRetry = () => {
+    if (!currentPuzzle) return;
+    const initialChess = new Chess(currentPuzzle.FEN);
+    const rawMoves = currentPuzzle.Moves.split(' ');
+
+    setChess(initialChess);
+    setStatus('solving');
+
+    const initialTurn = initialChess.turn();
+    const actualSolverColor = initialTurn === 'w' ? 'b' : 'w';
+    setSolverColor(actualSolverColor);
+
+    if (rawMoves.length > 0) {
+      const oppMoveUci = rawMoves[0];
+      const from = oppMoveUci.substring(0, 2);
+      const to = oppMoveUci.substring(2, 4);
+      const promo = oppMoveUci[4] || undefined;
+
+      setTimeout(() => {
+        const moveRes = initialChess.move({ from, to, promotion: promo });
+        if (moveRes) {
+          setLastMove({ from, to });
+          setChess(new Chess(initialChess.fen()));
+          setMoveIndex(1);
+        }
+      }, 200);
+    }
+  };
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 md:p-6 max-w-7xl mx-auto w-full items-start justify-center">
       {/* Board Column */}
@@ -172,16 +201,35 @@ export function PuzzleView() {
 
         {/* Puzzle Outcome Feedback Banner */}
         {status === 'correct' && (
-          <div className="w-full max-w-[540px] bg-emerald-500/20 border border-emerald-500 text-emerald-300 p-3.5 rounded-xl text-center font-bold flex items-center justify-center gap-2 animate-in fade-in">
+          <div className="w-full max-w-[540px] bg-emerald-500/20 border border-emerald-500 text-emerald-300 p-3.5 rounded-xl text-center font-bold flex items-center justify-center gap-2 animate-in fade-in shadow-lg">
             <CheckCircle2 size={20} />
             <span>Puzzle Solved! Great job!</span>
           </div>
         )}
 
         {status === 'failed' && (
-          <div className="w-full max-w-[540px] bg-rose-500/20 border border-rose-500 text-rose-300 p-3.5 rounded-xl text-center font-bold flex items-center justify-center gap-2 animate-in fade-in">
-            <XCircle size={20} />
-            <span>Incorrect move! Try another puzzle.</span>
+          <div className="w-full max-w-[540px] bg-rose-500/20 border border-rose-500 text-rose-300 p-4 rounded-xl text-center font-bold flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in shadow-lg">
+            <div className="flex items-center gap-2 text-sm">
+              <XCircle size={20} className="shrink-0 text-rose-400" />
+              <span>Incorrect move! Give it another try?</span>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={handleRetry}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-extrabold rounded-lg text-xs transition shadow-md"
+              >
+                <RotateCcw size={14} />
+                <span>Retry</span>
+              </button>
+              <button
+                onClick={loadNextPuzzle}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-3 py-2 bg-chess-card border border-chess-border hover:bg-[#302e2b] text-gray-200 font-bold rounded-lg text-xs transition"
+              >
+                <span>Next</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -211,10 +259,23 @@ export function PuzzleView() {
             </div>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 flex flex-col gap-2">
+            {status === 'failed' && (
+              <button
+                onClick={handleRetry}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-black font-extrabold rounded-xl text-sm transition shadow-lg"
+              >
+                <RotateCcw size={16} />
+                <span>Retry This Puzzle</span>
+              </button>
+            )}
             <button
               onClick={loadNextPuzzle}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-chess-accent hover:bg-chess-accentHover text-black font-extrabold rounded-xl text-sm transition shadow-lg"
+              className={`w-full flex items-center justify-center gap-2 py-3 text-sm font-extrabold rounded-xl transition shadow-lg ${
+                status === 'failed'
+                  ? 'bg-chess-card border border-chess-border hover:bg-[#302e2b] text-white'
+                  : 'bg-chess-accent hover:bg-chess-accentHover text-black'
+              }`}
             >
               <span>Next Puzzle</span>
               <ArrowRight size={16} />
