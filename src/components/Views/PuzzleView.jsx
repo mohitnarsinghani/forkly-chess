@@ -100,6 +100,11 @@ export function PuzzleView() {
           const currentCount = parseInt(localStorage.getItem('chess_puzzles_solved') || '0', 10);
           localStorage.setItem('chess_puzzles_solved', (currentCount + 1).toString());
           audio.playGameEnd();
+
+          // Auto-load next puzzle after 1.4 seconds
+          setTimeout(() => {
+            loadNextPuzzle();
+          }, 1400);
         } else {
           // Play opponent response move
           setMoveIndex(nextIdx + 1);
@@ -121,6 +126,11 @@ export function PuzzleView() {
                 const currentCount = parseInt(localStorage.getItem('chess_puzzles_solved') || '0', 10);
                 localStorage.setItem('chess_puzzles_solved', (currentCount + 1).toString());
                 audio.playGameEnd();
+
+                // Auto-load next puzzle after 1.4 seconds
+                setTimeout(() => {
+                  loadNextPuzzle();
+                }, 1400);
               }
             }
           }, 350);
@@ -203,7 +213,7 @@ export function PuzzleView() {
         {status === 'correct' && (
           <div className="w-full max-w-[540px] bg-emerald-500/20 border border-emerald-500 text-emerald-300 p-3.5 rounded-xl text-center font-bold flex items-center justify-center gap-2 animate-in fade-in shadow-lg">
             <CheckCircle2 size={20} />
-            <span>Puzzle Solved! Great job!</span>
+            <span>Puzzle Solved! Auto-loading next puzzle...</span>
           </div>
         )}
 
