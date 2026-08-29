@@ -3,7 +3,7 @@ import { Chess } from 'chess.js';
 import { ChessboardContainer } from '../Board/ChessboardContainer';
 import { puzzleService } from '../../services/puzzleService';
 import { audio } from '../../services/audioService';
-import { Puzzle, CheckCircle2, XCircle, ArrowRight, Trophy, RotateCcw } from 'lucide-react';
+import { Puzzle, CheckCircle2, XCircle, ArrowRight, Trophy, RotateCcw, Lightbulb, Eye } from 'lucide-react';
 
 export function PuzzleView() {
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
@@ -16,6 +16,7 @@ export function PuzzleView() {
   const [ratingRange, setRatingRange] = useState('all');
   const [lastMove, setLastMove] = useState(null);
   const [solverColor, setSolverColor] = useState('w'); // Color that user needs to solve
+  const [showSolution, setShowSolution] = useState(false);
 
   const themes = [
     { id: 'all', label: 'All Themes' },
@@ -50,6 +51,7 @@ export function PuzzleView() {
     setChess(initialChess);
     setSolutionMoves(rawMoves);
     setStatus('solving');
+    setShowSolution(false);
 
     // The solver color is opposite of initial turn (because opponent plays move 0)
     const initialTurn = initialChess.turn();
@@ -74,6 +76,34 @@ export function PuzzleView() {
     }
   };
 
+  const getFormattedSolution = () => {
+    if (!currentPuzzle || !currentPuzzle.Moves) return '';
+    try {
+      const tempGame = new Chess(currentPuzzle.FEN);
+      const rawMoves = currentPuzzle.Moves.split(' ');
+      const sanList = [];
+
+      rawMoves.forEach((m) => {
+        const from = m.substring(0, 2);
+        const to = m.substring(2, 4);
+        const promo = m[4] || undefined;
+        const moveRes = tempGame.move({ from, to, promotion: promo });
+        if (moveRes) {
+          sanList.push(moveRes.san);
+        } else {
+          sanList.push(m);
+        }
+      });
+
+      if (sanList.length > 1) {
+        return `Opponent setup: ${sanList[0]} ➔ Solution: ${sanList.slice(1).join(', ')}`;
+      }
+      return `Solution: ${sanList.join(', ')}`;
+    } catch (e) {
+      return `Solution (UCI): ${currentPuzzle.Moves.split(' ').slice(1).join(' ➔ ')}`;
+    }
+  };
+
   const handleUserMove = (moveObj) => {
     if (status !== 'solving' || moveIndex >= solutionMoves.length) return null;
 
@@ -89,8 +119,12 @@ export function PuzzleView() {
 
       setLastMove({ from: userFrom, to: userTo });
 
-      // Compare user move with expected move
-      if (userMoveUci.startsWith(expectedMoveUci.substring(0, 4))) {
+      // Compare user move with expected move (or compare square from-to for maximum robustness)
+      const expectedFrom = expectedMoveUci.substring(0, 2);
+      const expectedTo = expectedMoveUci.substring(2, 4);
+      const isMoveCorrect = userMoveUci.startsWith(expectedMoveUci.substring(0, 4)) || (userFrom === expectedFrom && userTo === expectedTo);
+
+      if (isMoveCorrect) {
         audio.playMove();
         const nextIdx = moveIndex + 1;
 
@@ -199,9 +233,20 @@ export function PuzzleView() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 bg-chess-card border border-chess-border px-3 py-1.5 rounded-lg">
-            <Trophy size={16} className="text-chess-gold" />
-            <span className="text-xs font-extrabold text-white">Streak: {streak}</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowSolution(!showSolution)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 border border-amber-500/50 hover:bg-amber-500/30 text-amber-300 rounded-lg text-xs font-bold transition shadow"
+              title="Show Solution Hint"
+            >
+              <Lightbulb size={14} className="text-amber-400 fill-amber-400" />
+              <span>{showSolution ? 'Hide Solution' : 'Show Solution'}</span>
+            </button>
+
+            <div className="flex items-center gap-2 bg-chess-card border border-chess-border px-3 py-1.5 rounded-lg">
+              <Trophy size={16} className="text-chess-gold" />
+              <span className="text-xs font-extrabold text-white">Streak: {streak}</span>
+            </div>
           </div>
         </div>
 
@@ -214,6 +259,27 @@ export function PuzzleView() {
           disabled={status !== 'solving'}
           boardWidth={520}
         />
+
+        {/* Show Solution Banner / Modal */}
+        {showSolution && (
+          <div className="w-full max-w-[540px] bg-amber-500/15 border-2 border-amber-400/80 text-amber-200 p-4 rounded-xl shadow-xl flex flex-col gap-2 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2 font-black text-sm text-amber-300 uppercase tracking-wide">
+                <Lightbulb size={18} className="text-amber-400 fill-amber-400" />
+                Grandmaster Solution Path
+              </span>
+              <button
+                onClick={() => setShowSolution(false)}
+                className="text-amber-300 hover:text-white text-xs font-bold px-2 py-0.5 bg-amber-500/30 rounded"
+              >
+                ✕ Close
+              </button>
+            </div>
+            <div className="text-xs font-mono font-extrabold bg-[#161512] p-3 rounded-lg border border-amber-500/40 text-amber-100 leading-relaxed">
+              {getFormattedSolution()}
+            </div>
+          </div>
+        )}
 
         {/* Puzzle Outcome Feedback Banner */}
         {status === 'correct' && (
@@ -256,7 +322,15 @@ export function PuzzleView() {
             </div>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 flex flex-col gap-2.5">
+            <button
+              onClick={() => setShowSolution(!showSolution)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500/20 border border-amber-500/50 hover:bg-amber-500/30 text-amber-300 font-extrabold rounded-xl text-sm transition shadow-lg"
+            >
+              <Lightbulb size={16} className="text-amber-400 fill-amber-400" />
+              <span>{showSolution ? 'Hide Solution' : 'Show Solution'}</span>
+            </button>
+
             <button
               onClick={loadNextPuzzle}
               className="w-full flex items-center justify-center gap-2 py-3 bg-chess-accent hover:bg-chess-accentHover text-black font-extrabold rounded-xl text-sm transition shadow-lg"
