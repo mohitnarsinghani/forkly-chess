@@ -4,26 +4,26 @@ import { ArrowLeft, Play, Bot, Puzzle, Search, Upload, Swords, Sparkles, Chevron
 export function FeaturesView({ onNavigate, onBack }) {
   const featureList = [
     {
-      id: 'play_online',
-      title: 'Play Online Matches',
-      badge: 'Live',
+      id: 'play_bots',
+      title: 'Play with Highly Trained Bots',
+      badge: 'Bot Engine',
       badgeColor: 'text-lime-400 bg-[#1c3614] border-[#395e28]',
-      icon: '⏱️',
+      icon: '🤖',
       iconBg: 'from-[#81b64c] to-[#5b8233]',
-      desc: 'Play live chess against online players with custom time controls (10 min rapid, 5 min blitz, 3 days daily).',
-      actionText: 'Play Online',
-      target: 'home'
+      desc: 'Challenge 20+ highly trained Stockfish 18 bot personalities scaled across 5 skill tiers (200 to 2800 ELO) with instant move calculation.',
+      actionText: 'Play vs Bots',
+      target: 'coach'
     },
     {
-      id: 'play_bots',
-      title: 'Stockfish & Personality Bots',
-      badge: 'AI Engine',
+      id: 'passplay',
+      title: 'Local Pass & Play (2 Players)',
+      badge: 'Local Match',
       badgeColor: 'text-purple-400 bg-purple-500/15 border-purple-500/30',
-      icon: '🤖',
+      icon: '⚔️',
       iconBg: 'from-purple-600 to-indigo-600',
-      desc: 'Challenge Stockfish 18 or 20+ personality bots organized into 5 skill tiers from Beginner to Grandmaster.',
-      actionText: 'Choose Bot',
-      target: 'coach'
+      desc: 'Play face-to-face matches with friends locally on a single device with legal move indicators and turn timers.',
+      actionText: 'Start Pass & Play',
+      target: 'passplay'
     },
     {
       id: 'puzzles',
@@ -32,25 +32,25 @@ export function FeaturesView({ onNavigate, onBack }) {
       badgeColor: 'text-amber-400 bg-amber-500/15 border-amber-500/30',
       icon: '🧩',
       iconBg: 'from-amber-500 to-orange-600',
-      desc: 'Solve 40,000+ tactical puzzles on a winding map with strategy tips from Coach Sam.',
+      desc: 'Solve 40,000+ tactical puzzles on a winding map with strategy tips from Strategy Coach Sam.',
       actionText: 'Solve Puzzles',
       target: 'puzzlesMap'
     },
     {
       id: 'analysis',
       title: 'Game & FEN/PGN Analysis',
-      badge: 'Engine',
+      badge: 'Stockfish 18',
       badgeColor: 'text-cyan-400 bg-cyan-500/15 border-cyan-500/30',
       icon: '🔍',
       iconBg: 'from-cyan-600 to-blue-600',
-      desc: 'Analyze any chess position or complete match by uploading FEN/PGN with live Stockfish evaluation & graph.',
+      desc: 'Analyze any chess position or complete match by uploading FEN/PGN with live Stockfish Multi-PV line evaluation.',
       actionText: 'Analyze Position',
       target: 'analysis'
     },
     {
       id: 'review',
       title: 'Load Game & PGN Replay',
-      badge: 'Review',
+      badge: 'PGN Viewer',
       badgeColor: 'text-indigo-400 bg-indigo-500/15 border-indigo-500/30',
       icon: '📜',
       iconBg: 'from-indigo-600 to-purple-600',
@@ -59,15 +59,15 @@ export function FeaturesView({ onNavigate, onBack }) {
       target: 'review'
     },
     {
-      id: 'passplay',
-      title: 'Pass & Play (2 Players)',
-      badge: 'Local',
+      id: 'timer_controls',
+      title: 'Custom Clock Time Controls',
+      badge: 'Timers',
       badgeColor: 'text-lime-400 bg-[#1c3614] border-[#395e28]',
-      icon: '⚔️',
-      iconBg: 'from-[#81b64c] to-[#5b8233]',
-      desc: 'Play a face-to-face match with a friend on one single device with automatic board flip and turn timer.',
-      actionText: 'Pass & Play',
-      target: 'passplay'
+      icon: '⏱️',
+      iconBg: 'from-emerald-600 to-teal-600',
+      desc: 'Customize match time controls including 10 min Rapid, 5 min Blitz, and Bullet presets for local play.',
+      actionText: 'Set Timers',
+      target: 'home'
     }
   ];
 
@@ -102,7 +102,7 @@ export function FeaturesView({ onNavigate, onBack }) {
           <div>
             <h1 className="font-black text-xl text-white tracking-tight">What can you do on Forkly?</h1>
             <p className="text-xs text-neutral-400 font-semibold mt-0.5 leading-relaxed">
-              Explore everything Forkly has to offer — from online matches and bot battles to tactical puzzles & engine analysis.
+              Explore everything Forkly has to offer — from Stockfish bot battles and Pass & Play to tactical puzzles & engine analysis.
             </p>
           </div>
         </div>
