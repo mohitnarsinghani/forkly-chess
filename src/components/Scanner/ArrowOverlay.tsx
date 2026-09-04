@@ -57,7 +57,7 @@ export const ArrowOverlay: React.FC<ArrowOverlayProps> = ({
   return (
     <svg
       viewBox="0 0 800 800"
-      className="absolute inset-0 w-full h-full pointer-events-none z-20"
+      className="absolute inset-0 w-full h-full pointer-events-none z-30"
       style={{ overflow: 'visible' }}
     >
       <defs>
@@ -71,8 +71,13 @@ export const ArrowOverlay: React.FC<ArrowOverlayProps> = ({
         const isHighlighted = activeRank === null || activeRank === rank;
         const colorConfig = ARROW_COLORS[rank] || ARROW_COLORS[1];
 
-        const start = squareToCoords(m.from);
-        const end = squareToCoords(m.to);
+        // Resolve from and to squares from explicit props, uci, or pv string
+        const uciStr = m.uci || (typeof m.pv === 'string' ? m.pv.split(' ')[0] : '') || '';
+        const fromSquare = m.from || (uciStr.length >= 4 ? uciStr.substring(0, 2) : '');
+        const toSquare = m.to || (uciStr.length >= 4 ? uciStr.substring(2, 4) : '');
+
+        const start = squareToCoords(fromSquare);
+        const end = squareToCoords(toSquare);
 
         const dx = end.x - start.x;
         const dy = end.y - start.y;
