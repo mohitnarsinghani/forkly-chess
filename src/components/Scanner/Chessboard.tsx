@@ -164,7 +164,13 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     if (disabled) return;
     const piece = chess.get(square);
     if (piece && piece.color === currentTurn) {
-      e.dataTransfer.setData('text/plain', square);
+      try {
+        e.dataTransfer.setData('text/plain', square);
+        e.dataTransfer.setData('text', square);
+        e.dataTransfer.effectAllowed = 'move';
+      } catch {
+        // Fallback for strict engines
+      }
       setSelectedSquare(square);
       const moves = chess.moves({ square, verbose: true });
       setLegalMoves(moves.map((m) => m.to as Square));
@@ -175,11 +181,22 @@ export const Chessboard: React.FC<ChessboardProps> = ({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    try {
+      e.dataTransfer.dropEffect = 'move';
+    } catch {
+      // Fallback
+    }
   };
 
   const handleDrop = (e: React.DragEvent, targetSquare: Square) => {
     e.preventDefault();
-    const fromSquare = e.dataTransfer.getData('text/plain') as Square;
+    let fromSquare: Square | null = null;
+    try {
+      fromSquare = (e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text') || selectedSquare) as Square;
+    } catch {
+      fromSquare = selectedSquare;
+    }
+
     if (!fromSquare || disabled) return;
 
     try {
