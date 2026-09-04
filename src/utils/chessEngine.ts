@@ -240,92 +240,18 @@ function convertUciListToSan(fen: string, uciMoves: string[]): string[] {
  */
 export async function fetchChessEvaluation(fen: string): Promise<EvaluationState> {
   const encodedFen = encodeURIComponent(fen);
+  const localEval = evaluatePositionLocally(fen);
 
-  // 1. Try Server Stockfish 18 Engine (/api/stockfish-eval)
+  // 1. Try Lichess Cloud Database with 1000ms AbortController timeout
   try {
-    const res = await fetch(`/api/stockfish-eval?fen=${encodedFen}&depth=12&movetime=500`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success && data.topMoves && data.topMoves.length > 0) {
-        return {
-          score: data.score,
-          scoreText: data.scoreText,
-          mate: data.mate,
-          winChance: data.winChance,
-          bestMove: data.bestMove,
-          topMoves: data.topMoves,
-          depth: data.depth || 14,
-          isLoading: false,
-          source: data.source || 'stockfish-18',
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('Server stockfish evaluation failed, trying direct cloud engines:', err);
-  }
-
-  // 2. Direct Fallback: chess-api.com (Stockfish 18)
-  try {
-    const directApiRes = await fetch('https://chess-api.com/v1', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fen, depth: 12 }),
-    });
-
-    if (directApiRes.ok) {
-      const data1: any = await directApiRes.json();
-      if (data1.move && data1.move !== '(none)') {
-        const from = data1.from || data1.move.substring(0, 2);
-        const to = data1.to || data1.move.substring(2, 4);
-        const san = data1.san || data1.move;
-        const cpVal = data1.centipawns
-          ? parseInt(data1.centipawns, 10)
-          : data1.eval
-          ? Math.round(data1.eval * 100)
-          : 0;
-        const { text, winChance, scoreNum } = formatEvalScore(cpVal, data1.mate);
-        const pvSan = data1.continuationArr
-          ? convertUciListToSan(fen, [data1.move, ...data1.continuationArr])
-          : [san];
-
-        const bestMove: BestMoveInfo = {
-          uci: data1.move,
-          from,
-          to,
-          san,
-          cp: cpVal,
-          mate: data1.mate,
-          scoreText: text,
-          depth: data1.depth || 12,
-          pvList: pvSan,
-          source: 'stockfish-18',
-          rank: 1,
-          color: ARROW_COLORS[1].primary,
-        };
-
-        return {
-          score: data1.eval ?? scoreNum,
-          scoreText: text,
-          mate: data1.mate,
-          winChance: data1.winChance ? Math.round(data1.winChance) : winChance,
-          bestMove,
-          topMoves: [bestMove],
-          depth: data1.depth || 12,
-          isLoading: false,
-          source: 'stockfish-18',
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('Direct chess-api.com fallback failed:', err);
-  }
-
-  // 3. Fallback: Lichess Cloud Database
-  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000);
     const lichessRes = await fetch(
       `https://lichess.org/api/cloud-eval?fen=${encodedFen}&multiPv=3`,
-      { headers: { Accept: 'application/json' } }
+      { headers: { Accept: 'application/json' }, signal: controller.signal }
     );
+    clearTimeout(timeoutId);
+
     if (lichessRes.ok) {
       const lichessData = await lichessRes.json();
       if (lichessData && lichessData.pvs && lichessData.pvs.length > 0) {
@@ -384,11 +310,76 @@ export async function fetchChessEvaluation(fen: string): Promise<EvaluationState
       }
     }
   } catch (err) {
-    console.warn('Lichess cloud eval query failed:', err);
+    // Cloud query timed out or failed
   }
 
-  // 4. Emergency offline fallback
-  const localEval = evaluatePositionLocally(fen);
+  // 2. Try Direct Fallback: chess-api.com (Stockfish 18) with 1000ms timeout
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000);
+    const directApiRes = await fetch('https://chess-api.com/v1', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fen, depth: 12 }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (directApiRes.ok) {
+      const data1: any = await directApiRes.json();
+      if (data1.move && data1.move !== '(none)') {
+        const from = data1.from || data1.move.substring(0, 2);
+        const to = data1.to || data1.move.substring(2, 4);
+        const san = data1.san || data1.move;
+        const cpVal = data1.centipawns
+          ? parseInt(data1.centipawns, 10)
+          : data1.eval
+          ? Math.round(data1.eval * 100)
+          : 0;
+        const { text, winChance, scoreNum } = formatEvalScore(cpVal, data1.mate);
+        const pvSan = data1.continuationArr
+          ? convertUciListToSan(fen, [data1.move, ...data1.continuationArr])
+          : [san];
+
+        const bestMove: BestMoveInfo = {
+          uci: data1.move,
+          from,
+          to,
+          san,
+          cp: cpVal,
+          mate: data1.mate,
+          scoreText: text,
+          depth: data1.depth || 12,
+          pvList: pvSan,
+          source: 'stockfish-18',
+          rank: 1,
+          color: ARROW_COLORS[1].primary,
+        };
+
+        // Combine with local top 2 and top 3 moves if available
+        const combinedTopMoves = [
+          bestMove,
+          ...(localEval.topMoves ? localEval.topMoves.slice(1) : []),
+        ];
+
+        return {
+          score: data1.eval ?? scoreNum,
+          scoreText: text,
+          mate: data1.mate,
+          winChance: data1.winChance ? Math.round(data1.winChance) : winChance,
+          bestMove,
+          topMoves: combinedTopMoves,
+          depth: data1.depth || 12,
+          isLoading: false,
+          source: 'stockfish-18',
+        };
+      }
+    }
+  } catch (err) {
+    // Timeout or network error
+  }
+
+  // 3. Guaranteed instant local evaluation fallback
   return {
     score: localEval.score,
     scoreText: localEval.scoreText,
