@@ -125,7 +125,7 @@ export default function App() {
           )}
 
           {activeTab === 'review' && <GameReviewView onBack={() => setActiveTab('home')} />}
-          {activeTab === 'analysis' && <AnalysisView />}
+          {activeTab === 'analysis' && <AnalysisView onBack={() => setActiveTab('home')} />}
           {activeTab === 'passplay' && <PassPlayView onBack={() => setActiveTab('home')} />}
 
           {activeTab === 'features' && (
