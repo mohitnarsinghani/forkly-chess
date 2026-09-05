@@ -122,7 +122,7 @@ export function BotPlayView({ selectedBot = null, selectedColor = 'w', onNavigat
   };
 
   const triggerBotMove = async (currentChess, botObj = activeBot) => {
-    if (currentChess.isGameOver()) return;
+    if (!currentChess || currentChess.isGameOver()) return;
     setIsThinking(true);
 
     try {
@@ -130,13 +130,18 @@ export function BotPlayView({ selectedBot = null, selectedColor = 'w', onNavigat
       const tempChess = new Chess(currentChess.fen());
       let moveResult = null;
 
-      // 1. Try FastAPI backend engine service
+      // 1. Try API backend service with strict timeout
       try {
-        const apiRes = await fetch('http://localhost:8000/api/bot/move', {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 400);
+        const apiRes = await fetch('/api/bot/move', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fen: currentChess.fen(), elo: botElo })
+          body: JSON.stringify({ fen: currentChess.fen(), elo: botElo }),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
+
         if (apiRes.ok) {
           const apiData = await apiRes.json();
           if (apiData.from && apiData.to) {
@@ -144,23 +149,15 @@ export function BotPlayView({ selectedBot = null, selectedColor = 'w', onNavigat
           }
         }
       } catch (apiErr) {
-        // Silent fallback to local WASM worker
+        // Fallback to local engines
       }
 
-      if (!moveResult) {
-        if (botElo < 600) {
-          // Realistic beginner bot moves for < 600 ELO
-          await new Promise((resolve) => setTimeout(resolve, 450));
-          const lowEloMove = getLowEloMove(tempChess.fen(), botElo);
-          if (lowEloMove) {
-            moveResult = tempChess.move(lowEloMove);
-          }
-        } else {
-          // Stockfish engine calculation for >= 600 ELO
+      // 2. Try Stockfish WebWorker if backend didn't respond
+      if (!moveResult && botElo >= 600) {
+        try {
           let skill = 20;
-          let depth = 15;
-          if (botElo <= 600) { skill = 2; depth = 2; }
-          else if (botElo <= 800) { skill = 4; depth = 3; }
+          let depth = 12;
+          if (botElo <= 800) { skill = 4; depth = 3; }
           else if (botElo <= 1200) { skill = 8; depth = 5; }
           else if (botElo <= 1500) { skill = 11; depth = 7; }
           else if (botElo <= 1800) { skill = 14; depth = 9; }
@@ -170,23 +167,38 @@ export function BotPlayView({ selectedBot = null, selectedColor = 'w', onNavigat
             tempChess.fen(),
             skill,
             depth,
-            350
+            300
           );
 
-          if (uciMove) {
+          if (uciMove && uciMove.length >= 4) {
             const from = uciMove.substring(0, 2);
             const to = uciMove.substring(2, 4);
             const promo = uciMove[4] || undefined;
             moveResult = tempChess.move({ from, to, promotion: promo });
-          } else {
-            const fallbackMove = getBotMove(tempChess.fen(), 3);
-            if (fallbackMove) {
-              moveResult = tempChess.move(fallbackMove);
-            }
+          }
+        } catch (workerErr) {
+          // Fallback to local minimax
+        }
+      }
+
+      // 3. Guaranteed instant local engine fallback for all bot levels (100% reliable)
+      if (!moveResult) {
+        if (botElo < 600) {
+          const lowEloMove = getLowEloMove(tempChess.fen(), botElo);
+          if (lowEloMove) {
+            moveResult = tempChess.move(lowEloMove);
+          }
+        }
+        if (!moveResult) {
+          const skillLvl = Math.max(1, Math.min(20, Math.round((botElo - 200) / 130)));
+          const fallbackMove = getBotMove(tempChess.fen(), skillLvl);
+          if (fallbackMove) {
+            moveResult = tempChess.move(fallbackMove);
           }
         }
       }
 
+      // 4. Execute move and update board state
       if (moveResult) {
         setChess(tempChess);
         setLastMove({ from: moveResult.from, to: moveResult.to });
